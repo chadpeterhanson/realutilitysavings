@@ -1,0 +1,291 @@
+{
+  "plans": [
+    {
+      "data": {
+        "planId": "AUR1",
+        "brandName": "Aurora Energy",
+        "displayName": "Sunsmart Time-of-Use",
+        "geography": {
+          "includedPostcodes": [
+            "5000-5999"
+          ]
+        },
+        "electricityContract": {
+          "dailySupplyCharge": "0.98",
+          "tariffPeriod": [
+            {
+              "dailySupplyCharges": "0.98",
+              "timeOfUseRates": [
+                {
+                  "type": "PEAK",
+                  "rates": [
+                    {
+                      "unitPrice": "0.42"
+                    }
+                  ],
+                  "timeOfUse": [
+                    {
+                      "days": [
+                        "MON",
+                        "TUE",
+                        "WED",
+                        "THU",
+                        "FRI"
+                      ],
+                      "startTime": "1300",
+                      "endTime": "2100"
+                    }
+                  ]
+                },
+                {
+                  "type": "OFF_PEAK",
+                  "rates": [
+                    {
+                      "unitPrice": "0.18"
+                    }
+                  ],
+                  "timeOfUse": [
+                    {
+                      "days": [
+                        "MON",
+                        "TUE",
+                        "WED",
+                        "THU",
+                        "FRI",
+                        "SAT",
+                        "SUN"
+                      ],
+                      "startTime": "0100",
+                      "endTime": "0600"
+                    }
+                  ]
+                },
+                {
+                  "type": "SHOULDER",
+                  "rates": [
+                    {
+                      "unitPrice": "0.28"
+                    }
+                  ],
+                  "timeOfUse": [
+                    {
+                      "days": [
+                        "MON",
+                        "TUE",
+                        "WED",
+                        "THU",
+                        "FRI",
+                        "SAT",
+                        "SUN"
+                      ],
+                      "startTime": "0600",
+                      "endTime": "1300"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "solarFeedInTariff": [
+            {
+              "singleTariff": {
+                "rates": [
+                  {
+                    "unitPrice": "0.1"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "incentives": [
+          {
+            "displayName": "Welcome credit",
+            "amount": "75"
+          }
+        ]
+      }
+    },
+    {
+      "data": {
+        "planId": "MER1",
+        "brandName": "Meridian Power",
+        "displayName": "Simple Saver",
+        "geography": {
+          "includedPostcodes": [
+            "5000-5999"
+          ]
+        },
+        "electricityContract": {
+          "dailySupplyCharge": "0.95",
+          "tariffPeriod": [
+            {
+              "dailySupplyCharges": "0.95",
+              "singleRate": {
+                "rates": [
+                  {
+                    "unitPrice": "0.32"
+                  }
+                ]
+              }
+            }
+          ],
+          "solarFeedInTariff": [
+            {
+              "singleTariff": {
+                "rates": [
+                  {
+                    "unitPrice": "0.05"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "incentives": []
+      }
+    },
+    {
+      "data": {
+        "planId": "COA1",
+        "brandName": "Coastline Energy",
+        "displayName": "Demand Saver",
+        "geography": {
+          "includedPostcodes": [
+            "5000-5999"
+          ]
+        },
+        "electricityContract": {
+          "dailySupplyCharge": "0.78",
+          "tariffPeriod": [
+            {
+              "dailySupplyCharges": "0.78",
+              "singleRate": {
+                "rates": [
+                  {
+                    "unitPrice": "0.3"
+                  }
+                ]
+              },
+              "demandCharges": [
+                {
+                  "amount": "0.4833",
+                  "measurementPeriod": "DAY",
+                  "startTime": "1600",
+                  "endTime": "2100",
+                  "days": [
+                    "MON",
+                    "TUE",
+                    "WED",
+                    "THU",
+                    "FRI"
+                  ]
+                }
+              ]
+            }
+          ],
+          "solarFeedInTariff": [
+            {
+              "singleTariff": {
+                "rates": [
+                  {
+                    "unitPrice": "0.06"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "incentives": []
+      }
+    },
+    {
+      "data": {
+        "planId": "SAL1",
+        "brandName": "Saltbush Retail",
+        "displayName": "Solar Max",
+        "geography": {
+          "includedPostcodes": [
+            "5000-5999"
+          ]
+        },
+        "electricityContract": {
+          "dailySupplyCharge": "1.05",
+          "tariffPeriod": [
+            {
+              "dailySupplyCharges": "1.05",
+              "singleRate": {
+                "rates": [
+                  {
+                    "unitPrice": "0.3"
+                  }
+                ]
+              }
+            }
+          ],
+          "solarFeedInTariff": [
+            {
+              "singleTariff": {
+                "rates": [
+                  {
+                    "unitPrice": "0.12"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "incentives": [
+          {
+            "displayName": "Welcome credit",
+            "amount": "50"
+          }
+        ]
+      }
+    },
+    {
+      "data": {
+        "planId": "GRN1",
+        "brandName": "Greenline Co-op",
+        "displayName": "Member Flat",
+        "geography": {
+          "includedPostcodes": [
+            "5000-5999"
+          ]
+        },
+        "electricityContract": {
+          "dailySupplyCharge": "0.92",
+          "tariffPeriod": [
+            {
+              "dailySupplyCharges": "0.92",
+              "singleRate": {
+                "rates": [
+                  {
+                    "unitPrice": "0.31"
+                  }
+                ]
+              }
+            }
+          ],
+          "solarFeedInTariff": [
+            {
+              "singleTariff": {
+                "rates": [
+                  {
+                    "unitPrice": "0.07"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "incentives": [
+          {
+            "displayName": "Welcome credit",
+            "amount": "150"
+          }
+        ]
+      }
+    }
+  ]
+}
