@@ -48,6 +48,12 @@ def _filter_and_map(raw, postcode):
     return load_plans_from_details(eligible or raw)
 
 
+def _map_all(raw):
+    """Map every plan in the cache, ignoring postcode (used as a safety net
+    so a postcode-filter miss can never strand us on sample plans)."""
+    return load_plans_from_details(raw)
+
+
 def load_market_plans(postcode: str):
     """Load eligible plans for the postcode, preferring real data:
 
@@ -55,23 +61,38 @@ def load_market_plans(postcode: str):
       2. bundled plans_sample.json                              -> sample CDR shapes
       3. built-in SAMPLE_PLANS                                  -> last-resort
 
-    Returns (plans, notes) where notes flag the data source so the UI can be
-    honest about whether these are live market offers or illustrative.
+    Critical rule: if a live cache exists at all, we NEVER fall back to sample
+    plans. A postcode-filter miss or an over-aggressive validator must not make
+    real data silently turn into fake plans. We degrade gracefully to "all real
+    plans" instead, with an honest note.
     """
     # 1. live cache from the fetcher
     try:
         cached = load_cached_plans(state="SA")
     except Exception:
         cached = None
-    if cached:
-        plans, notes = _filter_and_map(cached, postcode)
-        if plans:
-            st = cache_status(state="SA")
-            notes = [f"live AER plan data ({st.get('count', len(plans))} plans, "
-                     f"fetched {st.get('fetched_at', 'recently')})"] + notes
-            return plans, notes, "live"
 
-    # 2. bundled sample (real schema, illustrative values)
+    if cached:
+        st = cache_status(state="SA")
+        plans, notes = _filter_and_map(cached, postcode)
+        source_note = f"live AER plan data ({st.get('count', len(cached))} plans, fetched {st.get('fetched_at', 'recently')})"
+
+        if plans:
+            return plans, [source_note] + notes, "live"
+
+        # postcode filter left nothing -> use ALL real plans rather than samples
+        plans, notes2 = _map_all(cached)
+        if plans:
+            return plans, [source_note,
+                           "postcode filter matched no plans; showing all live plans for the state"] + notes2, "live"
+
+        # even mapping everything gave nothing -> data is malformed; say so,
+        # but still don't pretend samples are real
+        return list(SAMPLE_PLANS), [
+            "WARNING: live plan cache present but no usable plans could be parsed; "
+            "showing illustrative plans only"], "sample"
+
+    # 2. no live cache: bundled sample (real schema, illustrative values)
     path = os.path.join(HERE, "plans_sample.json")
     if os.path.exists(path):
         with open(path) as f:
@@ -189,8 +210,24 @@ def analyze():
 
     # 3. rank with the per-interval engine
     ranked = rank_plans_intervals(plans, readings, interval_minutes)
+
+    # 3a. FINAL-COST SANITY GUARD. Regardless of how a plan parsed, every real
+    # plan charges a daily supply charge (~$300-450/yr) that solar credits do
+    # NOT offset. A plan whose computed supply cost is near-zero has lost its
+    # supply charge in parsing (the "$8/yr" bug) and must never be shown.
+    days_covered = max(1, (readings[-1].ts - readings[0].ts).days + 1) if readings else 365
+    supply_floor = 0.40 * days_covered   # >= ~40c/day of supply over the period
+    plausible = [c for c in ranked if c.supply >= supply_floor]
+    dropped_unreal = len(ranked) - len(plausible)
+    if dropped_unreal:
+        plan_notes.append(f"excluded {dropped_unreal} plan(s) with implausibly low supply cost (parsing artefact)")
+    if plausible:
+        ranked = plausible
+    elif ranked:
+        plan_notes.append("WARNING: all plans failed the supply sanity check \u2014 plan data may be malformed")
+
     best = ranked[0]
-    best_plan = next(p for p in plans if p.name == best.plan)
+    best_plan = next((p for p in plans if p.name == best.plan), plans[0])
     ex = explain_winner(best_plan, best)
 
     # 3b. cost the user's ACTUAL current plan if they entered their tariff.

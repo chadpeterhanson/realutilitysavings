@@ -265,7 +265,8 @@ def plan_serves_postcode(plan_summary: dict, postcode: str) -> bool:
     """Check a Get Generic Plans summary entry against a postcode.
 
     The geography block lists includedPostcodes (and/or excludedPostcodes),
-    sometimes as ranges like '5000-5099'.
+    sometimes as ranges like '5000-5099'. Some plans use a wildcard marker
+    such as 'ALL' to mean 'available everywhere in the jurisdiction'.
     """
     geo = plan_summary.get("geography") or {}
     excluded = geo.get("excludedPostcodes") or []
@@ -273,6 +274,9 @@ def plan_serves_postcode(plan_summary: dict, postcode: str) -> bool:
     if _postcode_in(postcode, excluded):
         return False
     if not included:           # no list = available everywhere in jurisdiction
+        return True
+    # wildcard markers meaning "everywhere"
+    if any(str(x).strip().upper() in ("ALL", "*", "ANY") for x in included):
         return True
     return _postcode_in(postcode, included)
 
