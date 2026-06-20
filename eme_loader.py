@@ -54,9 +54,24 @@ def _f(x, default=0.0) -> float:
 
 
 def _cents(x, default=0.0) -> float:
-    """CDR unit prices and supply charges are quoted in CENTS (e.g. '33.58'
-    c/kWh, '92.00' c/day). The engine works in dollars, so convert."""
-    return _f(x, default * 100.0) / 100.0
+    """Return a price in DOLLARS, auto-detecting whether the source value is
+    quoted in dollars or cents.
+
+    Real AER/CDR data is inconsistent: some feeds quote unit prices in dollars
+    ('0.2269' = $0.2269/kWh, '0.9393' = $0.9393/day) and some in cents
+    ('38.72' = 38.72c/kWh, '104.50' = 104.5c/day). We disambiguate by
+    magnitude, which is unambiguous for energy tariffs:
+      - usage rates: realistic range is ~$0.05-$1.20/kWh. A value >3 must be
+        cents (e.g. 38.72 -> $0.3872); a value <=3 is already dollars.
+      - this same rule works for daily supply ($0.50-$2.50/day vs 50-250c).
+    """
+    v = _f(x, None)
+    if v is None:
+        return default
+    if v == 0:
+        return 0.0
+    # values above ~3 can only be cents for a per-kWh or per-day tariff
+    return v / 100.0 if abs(v) > 3.0 else v
 
 
 def _hhmm_to_hour(s: str) -> int:

@@ -194,6 +194,33 @@ def test_plausibility_filter_drops_impossible():
     print(f"PASS  plausibility filter drops impossible plan (kept {len(plans)} of 2)")
 
 
+def test_dollars_and_cents_autodetect():
+    """Real AER data quotes prices in DOLLARS ('0.2269'); some feeds use CENTS
+    ('38.72'). The loader must handle both without mangling either."""
+    from eme_loader import map_plan_detail, is_plausible_plan
+    # dollar-format (real AGL structure)
+    dollar = {"planId": "D", "displayName": "Dollar Plan",
+              "geography": {"includedPostcodes": ["ALL"]},
+              "electricityContract": {"tariffPeriod": [
+                  {"dailySupplyCharge": "0.9393", "singleRate": {"rates": [{"unitPrice": "0.2269"}]}}],
+                  "solarFeedInTariff": [{"singleTariff": {"rates": [{"unitPrice": "0.005"}]}}]}}
+    p, _ = map_plan_detail(dollar)
+    assert abs(p.supply - 0.9393) < 1e-4, p.supply
+    assert abs(p.flat - 0.2269) < 1e-4, p.flat
+    assert is_plausible_plan(p)[0]
+    # cents-format
+    cents = {"planId": "C", "displayName": "Cents Plan",
+             "geography": {"includedPostcodes": ["5000-5999"]},
+             "electricityContract": {"tariffPeriod": [
+                 {"dailySupplyCharges": "104.50", "singleRate": {"rates": [{"unitPrice": "38.72"}]}}],
+                 "solarFeedInTariff": [{"singleTariff": {"rates": [{"unitPrice": "5.00"}]}}]}}
+    p2, _ = map_plan_detail(cents)
+    assert abs(p2.supply - 1.045) < 1e-4, p2.supply
+    assert abs(p2.flat - 0.3872) < 1e-4, p2.flat
+    assert is_plausible_plan(p2)[0]
+    print("PASS  dollars/cents auto-detect (both formats parse correctly)")
+
+
 if __name__ == "__main__":
     print("=" * 64)
     print("ENERGY MADE EASY / CDR LOADER tests")
@@ -205,4 +232,5 @@ if __name__ == "__main__":
     test_end_to_end_with_engine()
     test_controlled_load_picks_main_period()
     test_plausibility_filter_drops_impossible()
+    test_dollars_and_cents_autodetect()
     print("\nAll loader tests passed.")
