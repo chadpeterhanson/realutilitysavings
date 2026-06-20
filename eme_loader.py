@@ -126,11 +126,38 @@ def map_plan_detail(detail: dict) -> tuple:
         return ("controlled" in name or "control load" in name or
                 name.strip() in ("cl", "controlled load") or "off peak dedicated" in name)
 
+    def _read_supply(obj):
+        """Read a daily supply charge from an object, tolerating the several
+        field names real AER plans use (singular/plural) and nested rate
+        blocks. Returns $/day or 0.0."""
+        if not isinstance(obj, dict):
+            return 0.0
+        for key in ("dailySupplyCharges", "dailySupplyCharge",
+                    "dailySupplyChargeAmount", "supplyCharge"):
+            v = obj.get(key)
+            if v not in (None, "", []):
+                c = _cents(v, 0.0)
+                if c > 0:
+                    return c
+        # sometimes nested inside a singleRate / rate block
+        for blk_key in ("singleRate", "supplyCharges"):
+            blk = obj.get(blk_key)
+            if isinstance(blk, dict):
+                got = _read_supply(blk)
+                if got > 0:
+                    return got
+            if isinstance(blk, list):
+                for item in blk:
+                    got = _read_supply(item)
+                    if got > 0:
+                        return got
+        return 0.0
+
     main_tp = None
     if tariff_periods:
-        # 1) a non-CL period that has a real daily supply charge
+        # 1) a non-CL period that has a real daily supply charge (any variant)
         for tp in tariff_periods:
-            if not _is_controlled_load(tp) and _cents(tp.get("dailySupplyCharges"), 0.0) > 0:
+            if not _is_controlled_load(tp) and _read_supply(tp) > 0:
                 main_tp = tp
                 break
         # 2) else any non-CL period
@@ -147,9 +174,10 @@ def map_plan_detail(detail: dict) -> tuple:
                          f"used '{main_tp.get('displayName','main')}'")
 
     # ---- supply charge (daily) ------------------------------------------
-    supply = _cents(ec.get("dailySupplyCharge"), 0.0)
+    # check contract level (all variants), then the chosen period
+    supply = _read_supply(ec)
     if supply == 0.0 and main_tp is not None:
-        supply = _cents(main_tp.get("dailySupplyCharges"), 0.0)
+        supply = _read_supply(main_tp)
 
     # ---- usage rates: flat or TOU ---------------------------------------
     flat = None

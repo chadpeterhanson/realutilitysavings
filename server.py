@@ -329,6 +329,61 @@ def parse_bills():
     return jsonify(combined)
 
 
+@app.route("/api/debug-plan")
+def debug_plan():
+    """Diagnostic: show one raw cached plan and exactly why it passes/fails
+    mapping + validation. Lets us see the real plan structure without dumping
+    the whole 8MB file. Safe to remove later."""
+    from eme_loader import map_plan_detail, is_plausible_plan
+    try:
+        cached = load_cached_plans(state="SA") or []
+    except Exception as e:
+        return jsonify({"error": f"load failed: {e}"})
+    if not cached:
+        return jsonify({"error": "no cached plans"})
+
+    # summarise why plans are being dropped across the whole set
+    total = len(cached)
+    mapped_ok = 0
+    passed = 0
+    fail_reasons = {}
+    first_raw = None
+    first_fail = None
+    for d in cached:
+        inner = d.get("data") if isinstance(d, dict) and "data" in d else d
+        if first_raw is None:
+            first_raw = inner
+        try:
+            plan, _ = map_plan_detail(inner)
+        except Exception as e:
+            fail_reasons[f"map error: {type(e).__name__}"] = fail_reasons.get(f"map error: {type(e).__name__}", 0) + 1
+            continue
+        if not plan:
+            fail_reasons["map returned None"] = fail_reasons.get("map returned None", 0) + 1
+            continue
+        mapped_ok += 1
+        ok, reason = is_plausible_plan(plan)
+        if ok:
+            passed += 1
+        else:
+            key = reason.split(" ")[0] + " ..." if reason else "unknown"
+            fail_reasons[reason] = fail_reasons.get(reason, 0) + 1
+            if first_fail is None:
+                first_fail = {"name": plan.name, "supply": plan.supply,
+                              "flat": plan.flat, "fit": plan.fit,
+                              "rates": getattr(plan, "rates", None), "reason": reason}
+
+    return jsonify({
+        "total_cached": total,
+        "mapped_ok": mapped_ok,
+        "passed_validation": passed,
+        "fail_reason_counts": fail_reasons,
+        "first_failed_mapped": first_fail,
+        "first_raw_plan_keys": list(first_raw.keys()) if first_raw else None,
+        "first_raw_electricityContract": (first_raw or {}).get("electricityContract"),
+    })
+
+
 @app.route("/api/plan-status")
 def plan_status():
     return jsonify(cache_status(state="SA"))
