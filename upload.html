@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Real Utility Savings — Analyze your usage</title>
+<style>
+  :root{--navy:#0A2A66;--green:#4FA82A;--green-d:#3B8A1E;--blue:#1E8FD0;
+    --ink:#16243F;--muted:#5C6B82;--line:#E6EBF2;--soft:#F3F7FC;--danger:#C0392B;
+    --r:12px;--sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--sans);background:var(--soft);color:var(--ink);line-height:1.6;}
+  .wrap{max-width:680px;margin:0 auto;padding:40px 22px 80px;}
+  h1{font-size:26px;font-weight:800;color:var(--navy);margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:15px;margin:0 0 28px;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:0 4px 16px rgba(10,42,102,.06);}
+  label{display:block;font-size:13px;font-weight:600;color:var(--navy);margin:14px 0 7px;}
+  label.first{margin-top:0;}
+  input[type=file],input[type=number],input[type=text]{width:100%;font-family:inherit;font-size:15px;padding:11px 13px;border:1.5px solid var(--line);border-radius:var(--r);outline:none;}
+  input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(30,143,208,.15);}
+  .row{display:flex;gap:14px;}.row>div{flex:1;}
+  button{margin-top:20px;width:100%;font-family:inherit;font-size:15px;font-weight:700;padding:14px;border-radius:var(--r);border:none;background:var(--navy);color:#fff;cursor:pointer;transition:background .15s;}
+  button:hover{background:#0A1F4D;}button:disabled{opacity:.5;cursor:default;}
+  .hint{font-size:12px;color:var(--muted);margin-top:5px;}
+  .out{margin-top:26px;}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px;}
+  .metric{background:var(--soft);border-radius:var(--r);padding:14px 15px;}
+  .metric .ml{font-size:12px;color:var(--muted);}
+  .metric .mv{font-size:23px;font-weight:800;color:var(--navy);margin-top:3px;}
+  .metric .mv.pos{color:var(--green-d);}
+  .plan{background:#fff;border:1.5px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;}
+  .plan.win{border-color:var(--green);box-shadow:0 0 0 3px rgba(79,168,42,.1);}
+  .ph{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+  .pn{font-weight:700;color:var(--navy);}
+  .pt{font-size:12px;color:var(--muted);}
+  .pv{font-size:18px;font-weight:800;color:var(--navy);}
+  .pb{font-size:12.5px;color:var(--muted);margin-top:8px;}
+  .pb .w{color:#F2901E;font-weight:600;}.pb .c{color:var(--green-d);font-weight:600;}
+  .badge{font-size:10.5px;font-weight:700;text-transform:uppercase;background:var(--green);color:#fff;padding:3px 9px;border-radius:999px;margin-left:8px;}
+  .why{background:linear-gradient(180deg,#EAF6E1,#fff);border:1.5px solid var(--green);border-radius:var(--r);padding:15px 17px;margin-top:16px;}
+  .why .t{font-weight:700;color:var(--green-d);margin-bottom:5px;}
+  .parsebar{font-size:12.5px;color:var(--muted);background:var(--soft);border-radius:8px;padding:10px 13px;margin-bottom:16px;}
+  .err{color:var(--danger);font-weight:600;}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:7px;}
+  @keyframes s{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Analyze your actual usage</h1>
+  <p class="sub">Upload your interval data (NEM12 or a CSV export) and we’ll replay a year of it against eligible plans.</p>
+  <div class="card">
+    <label class="first">Interval data file</label>
+    <input type="file" id="file" accept=".csv,.txt,.dat"/>
+    <div class="hint">NEM12 from SA Power Networks, or a CSV with timestamp + kWh columns.</div>
+    <div class="row">
+      <div><label>Postcode</label><input type="text" id="postcode" value="5045" maxlength="4"/></div>
+      <div><label>Current annual spend ($)</label><input type="number" id="bill" value="2400"/></div>
+    </div>
+    <button id="go" onclick="analyze()">Analyze my usage</button>
+  </div>
+  <div class="out" id="out"></div>
+</div>
+<script>
+async function analyze(){
+  var f=document.getElementById("file").files[0];
+  var out=document.getElementById("out");
+  if(!f){out.innerHTML='<p class="err">Choose a file first.</p>';return;}
+  var btn=document.getElementById("go");
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>Analyzing…';
+  var fd=new FormData();
+  fd.append("file",f);
+  fd.append("postcode",document.getElementById("postcode").value);
+  fd.append("current_bill",document.getElementById("bill").value);
+  try{
+    var r=await fetch("/api/analyze",{method:"POST",body:fd});
+    var d=await r.json();
+    if(d.error){out.innerHTML='<p class="err">'+d.error+'</p>';return;}
+    render(d);
+  }catch(e){out.innerHTML='<p class="err">'+e+'</p>';}
+  finally{btn.disabled=false;btn.textContent="Analyze my usage";}
+}
+function fmt(n){return (n==null?"—":n.toLocaleString());}
+function render(d){
+  var p=d.parse, best=d.plans[0], maxNet=d.plans[d.plans.length-1].net;
+  var h='<div class="parsebar">Parsed <b>'+p.format.toUpperCase()+'</b> · '+fmt(p.readings)+' readings · '+p.days_covered+' days · '+
+    'import '+fmt(p.import_kwh)+' kWh · export '+fmt(p.export_kwh)+' kWh'+(p.gaps?' · '+p.gaps+' gap(s)':'')+'</div>';
+  h+='<div class="metrics"><div class="metric"><div class="ml">Cheapest / year</div><div class="mv">$'+fmt(best.net)+'</div></div>';
+  if(d.saving!=null)h+='<div class="metric"><div class="ml">Saving vs now</div><div class="mv pos">$'+fmt(d.saving)+'</div></div>';
+  h+='<div class="metric"><div class="ml">Grid import</div><div class="mv" style="font-size:17px;">'+fmt(best.import_kwh)+' kWh</div></div>'+
+     '<div class="metric"><div class="ml">Solar export</div><div class="mv" style="font-size:17px;">'+fmt(best.export_kwh)+' kWh</div></div></div>';
+  d.plans.forEach(function(c,i){
+    h+='<div class="plan'+(i===0?' win':'')+'"><div class="ph"><div><span class="pn">'+(i+1)+'. '+c.name+'</span>'+(i===0?'<span class="badge">Best</span>':'')+'</div>'+
+       '<div class="pv">$'+fmt(c.net)+'</div></div>'+
+       '<div class="pb">Usage $'+fmt(c.usage)+' · Supply $'+fmt(c.supply)+
+       (c.demand>0?' · <span class="w">Demand $'+fmt(c.demand)+' ('+c.peak_demand_kw+'kW peak)</span>':'')+
+       (c.solar_credit>0?' · <span class="c">Solar −$'+fmt(c.solar_credit)+'</span>':'')+
+       (c.sign_up_credit>0?' · <span class="c">Sign-up −$'+fmt(c.sign_up_credit)+'</span>':'')+'</div></div>';
+  });
+  h+='<div class="why"><div class="t">Why '+d.winner+' wins</div><div>It comes out ahead because '+d.explanation.why.join(", and ")+'.';
+  if(d.explanation.caveat)h+=' <span style="color:var(--muted);">Heads up: '+d.explanation.caveat+'</span>';
+  h+='</div></div>';
+  if(d.plan_notes&&d.plan_notes.length)h+='<div class="hint" style="margin-top:12px;">'+d.plan_notes.join("; ")+'</div>';
+  document.getElementById("out").innerHTML=h;
+}
+</script>
+</body>
+</html>
