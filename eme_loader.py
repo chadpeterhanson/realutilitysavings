@@ -250,17 +250,40 @@ def map_plan_detail(detail: dict) -> tuple:
         return None, notes + [f"{plan_id}: no usable usage rates found"]
 
     # ---- solar feed-in tariff -------------------------------------------
+    # Real plans may list several feed-in entries (standard + promotional +
+    # tiered). Collect every rate we can find and take the LOWEST plausible
+    # standard rate, since the headline export rate a customer reliably gets
+    # is the base single-rate FiT, not a capped promo tier. Also guard against
+    # unit errors: SA feed-in tariffs are ~0-20c/kWh, never 40c+.
     fit = 0.0
     sfit = ec.get("solarFeedInTariff") or []
-    if isinstance(sfit, list) and sfit:
-        s0 = sfit[0]
-        single_t = s0.get("singleTariff") or {}
-        if single_t.get("rates"):
-            fit = _cents(single_t["rates"][0].get("unitPrice"))
-        elif single_t.get("amount"):
-            fit = _cents(single_t.get("amount"))
-        elif s0.get("amount"):
-            fit = _cents(s0.get("amount"))
+    fit_candidates = []
+    if isinstance(sfit, list):
+        for s0 in sfit:
+            if not isinstance(s0, dict):
+                continue
+            single_t = s0.get("singleTariff") or {}
+            if single_t.get("rates"):
+                for r in single_t["rates"]:
+                    fit_candidates.append(_cents(r.get("unitPrice")))
+            elif single_t.get("amount"):
+                fit_candidates.append(_cents(single_t.get("amount")))
+            elif s0.get("amount"):
+                fit_candidates.append(_cents(s0.get("amount")))
+            # tiered feed-in: take the tier rates too
+            tiered = s0.get("tieredTariff") or {}
+            for tier in (tiered.get("rates") or tiered.get("tiers") or []):
+                if isinstance(tier, dict):
+                    fit_candidates.append(_cents(tier.get("unitPrice") or tier.get("amount")))
+    # keep only plausible feed-in rates (0 < fit <= 0.20 $/kWh); discard
+    # anything that looks like a unit/parsing artefact
+    plausible_fits = [f for f in fit_candidates if f is not None and 0 < f <= 0.20]
+    if plausible_fits:
+        fit = min(plausible_fits)
+    elif fit_candidates:
+        # all candidates implausible -> clamp the smallest positive to the cap
+        positives = [f for f in fit_candidates if f and f > 0]
+        fit = min(0.20, min(positives)) if positives else 0.0
 
     # ---- incentives / sign-up credits -----------------------------------
     credit = 0.0

@@ -381,7 +381,30 @@ def debug_plan():
         "first_failed_mapped": first_fail,
         "first_raw_plan_keys": list(first_raw.keys()) if first_raw else None,
         "first_raw_electricityContract": (first_raw or {}).get("electricityContract"),
+        "named_plan_feedin": _named_plan_feedin(cached, request.args.get("name", "Alinta")),
     })
+
+
+def _named_plan_feedin(cached, name_substr):
+    """Dump the raw solarFeedInTariff + mapped fit for the first plan whose
+    name contains name_substr, so we can see how feed-in is really structured."""
+    from eme_loader import map_plan_detail
+    for d in cached:
+        inner = d.get("data") if isinstance(d, dict) and "data" in d else d
+        nm = str(inner.get("displayName", "")) + " " + str(inner.get("brandName", ""))
+        if name_substr.lower() in nm.lower():
+            ec = inner.get("electricityContract", {}) or {}
+            try:
+                plan, _ = map_plan_detail(inner)
+                mapped_fit = plan.fit if plan else None
+            except Exception as e:
+                mapped_fit = f"map error: {e}"
+            return {
+                "name": inner.get("displayName"),
+                "raw_solarFeedInTariff": ec.get("solarFeedInTariff"),
+                "mapped_fit": mapped_fit,
+            }
+    return None
 
 
 @app.route("/api/plan-status")
